@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'; // Přidán useState
-import { ChevronRight, ShoppingCart, ListPlus, Edit2, Check, X } from 'lucide-react'; // Přidány ikony
+import { ShoppingCart, ListPlus, Edit2, Check, X } from 'lucide-react'; // Přidány ikony
 import { type PolozkaKosiku, type DbProdukt } from '../../../types/types';
 import { spocitatCenyProObchody } from '../../../utils/ceny';
 
