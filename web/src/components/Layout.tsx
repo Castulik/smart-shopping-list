@@ -5,7 +5,7 @@ const Layout = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const showBottomNav = ['/', '/favorite', '/optimum'].includes(location.pathname);
+  const showBottomNav = ['/', '/favorite', '/optimum', "/addfood"].includes(location.pathname);
   const showBackArrow = !['/', '/favorite'].includes(location.pathname);
   const showSettings = ['/', '/favorite'].includes(location.pathname);
 
@@ -15,6 +15,7 @@ const Layout = () => {
       case '/favorite': return 'Oblíbená jídla';
       case '/settings': return 'Nastavení';
       case '/optimum': return 'Výsledky hledání';
+      case '/addfood': return 'Přidej recept';
       default: return 'Aplikace';
     }
   };
