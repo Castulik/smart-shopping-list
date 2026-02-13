@@ -85,13 +85,13 @@ export default function NakupPage() {
 
     // Pokud už máme vybraný produkt a jen ho editujeme, nechceme hledat znovu
     if (vybranyProdukt && vybranyProdukt.nazev === vstup) {
-        return;
+      return;
     }
 
     // 2. Nastavíme časovač (Debounce 300ms)
     const timeoutId = setTimeout(async () => {
       console.log(`🔎 Hledám v DB výraz: "${vstup}"`);
-      
+
       try {
         // Voláme naší novou Supabase funkci
         const vysledky = await searchProductsFuzzy(vstup);
@@ -111,7 +111,7 @@ export default function NakupPage() {
   const vyberProdukt = (produkt: ProduktDefinice) => {
     setVybranyProdukt(produkt)
     setVstup(produkt.nazev)
-    
+
     // Ošetření pokud jednotky chybí
     setJednotka(produkt.vychoziJednotka || 'ks')
     setPocet(1)
@@ -135,16 +135,16 @@ export default function NakupPage() {
 
   const editovatPolozku = (polozka: PolozkaKosiku) => {
     setUpravovaneId(polozka.id);
-    
+
     // Zkusíme najít definici v tom, co máme načtené (pro rychlou volbu), 
     // ale spíš si vytvoříme "mock" objekt, protože nemáme všechna data.
     setVybranyProdukt({
-        id: 'edit-item',
-        nazev: polozka.nazev,
-        icon: '✏️', // Nebo zkusit najít ikonu, pokud chceme být fancy
-        vychoziJednotka: polozka.jednotka,
-        mozneJednotky: ['ks', 'kg', 'l', 'g', 'balení'],
-        stitky: []
+      id: 'edit-item',
+      nazev: polozka.nazev,
+      icon: '✏️', // Nebo zkusit najít ikonu, pokud chceme být fancy
+      vychoziJednotka: polozka.jednotka,
+      mozneJednotky: ['ks', 'kg', 'l', 'g', 'balení'],
+      stitky: []
     });
 
     setVstup(polozka.nazev);
@@ -164,12 +164,22 @@ export default function NakupPage() {
   }
 
   const pridatDoKosiku = async () => {
+    console.log("Stav vybranyProdukt:", vybranyProdukt);
     if (!vybranyProdukt) return;
 
-    // Pokud je to úplně nová vlastní věc, můžeme ji poslat do návrhů (volitelné)
     if (vybranyProdukt.id === 'custom-item' && !upravovaneId) {
-       // Logika pro user_suggestions (můžeš odkomentovat, pokud chceš)
-       // supabase.from('user_suggestions').insert([{ nazev: vybranyProdukt.nazev }]).then(...)
+      // Použijeme try/catch pro případ, že by vypadl internet nebo DB
+      try {
+        const { error } = await supabase
+          .from('user_suggestions')
+          .insert([{ nazev: vybranyProdukt.nazev }]);
+
+        if (error) throw error;
+        console.log("🚀 Návrh na nové zboží odeslán!");
+      } catch (err) {
+        console.error("Chyba při ukládání návrhu:", err);
+        // Tady nemusíme uživatele otravovat alertem, je to jen "podkresová" funkce
+      }
     }
 
     // uložení do košíku z editu
@@ -219,6 +229,7 @@ export default function NakupPage() {
   return (
     <div className="pb-32">
       <ProductForm
+        kosik={true}
         vstup={vstup}
         setVstup={setVstup}
         naseptavacProdukty={naseptavacProdukty}
@@ -249,6 +260,7 @@ export default function NakupPage() {
           V košíku ({kosik.length})
         </h3>
         <ShoppingList
+          kosik={true}
           items={kosik}
           onDelete={smazPolozku}
           onEdit={editovatPolozku}

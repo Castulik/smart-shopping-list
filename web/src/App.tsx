@@ -3,6 +3,7 @@ import Layout from './components/Layout';
 import NakupPage from './pages/Nakup/NakupPage';
 import OptimumPage from './pages/Optimum/OptimumPage';
 import FavoritePage from './pages/Favorite/FavoritePage';
+import AddFoodPage from './pages/Favorite/AddFoodPage';
 
 const SettingsPage = () => (
   <div className="page-content">
@@ -19,6 +20,7 @@ function App() {
           <Route path="favorite" element={<FavoritePage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="optimum" element={<OptimumPage />} />
+          <Route path="addfood" element={<AddFoodPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

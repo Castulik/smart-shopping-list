@@ -2,6 +2,7 @@ import { type ProduktDefinice } from '../../../types/types';
 import { PlusCircle, Search, X } from 'lucide-react';
 
 interface Props {
+    kosik: boolean;
     vstup: string;
     setVstup: (v: string) => void;
     naseptavacProdukty: ProduktDefinice[];
@@ -20,7 +21,7 @@ interface Props {
 }
 
 export const ProductForm = ({
-    vstup, setVstup, naseptavacProdukty, vybranyProdukt, onVybratZNaspetavace, onVybratVlastni,
+    kosik, vstup, setVstup, naseptavacProdukty, vybranyProdukt, onVybratZNaspetavace, onVybratVlastni,
     pocet, setPocet, jednotka, setJednotka, aktivniStitky, toggleStitek,
     onConfirm, onCancel, submitLabel
 }: Props) => {
@@ -38,7 +39,7 @@ export const ProductForm = ({
 
                 <input
                     type="text"
-                    placeholder="Co přidáme na seznam?"
+                    placeholder={kosik ? "Co přidáme na nákupní seznam?" : "Co přidáme za ingredienci?"}
                     value={vstup}
                     onChange={(e) => setVstup(e.target.value)}
                     className={`w-full pl-12 pr-4 py-3.5 text-base rounded-xl border-2 outline-none transition-all
