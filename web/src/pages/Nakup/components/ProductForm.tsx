@@ -71,7 +71,7 @@ export const ProductForm = ({
                         onClick={() => onVybratZNaspetavace(prod)}
                     >
                         {/* A) IKONA */}
-                        <span className="text-2xl flex-shrink-0 w-8 text-center">{prod.icon}</span>
+                        <span className="text-2xl shrink-0 w-8 text-center">{prod.icon}</span>
 
                         {/* B) TEXTOVÝ OBSAH */}
                         <div className="flex-1 min-w-0 flex flex-col justify-center">
@@ -110,7 +110,7 @@ export const ProductForm = ({
                     </div>
                 );
             })}
-                {naseptavacProdukty.length === 0 && isCustomMode && (
+                {naseptavacProdukty.length < 5  && isCustomMode && (
                     <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-100 z-50 p-2">
                         <div
                             className="p-3 rounded-lg cursor-pointer bg-blue-50 text-primary flex items-center gap-3 font-medium active:scale-98 transition-transform"

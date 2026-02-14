@@ -30,8 +30,25 @@ export default function NakupPage() {
   });
 
   // 2. Automatické ukládání při každé změně
+  // 2. Automatické ukládání při každé změně (Hybridní verze)
   useEffect(() => {
+    // Vždy ulož lokálně (pro rychlost)
     localStorage.setItem('nakupni_kosik', JSON.stringify(kosik));
+
+    const syncCartToCloud = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      // Pokud je uživatel přihlášen, pošli "zálohu" do Supabase
+      if (session?.user) {
+        await supabase.from('user_carts').upsert({
+          user_id: session.user.id,
+          items: kosik, // Celé pole košíku uložíme jako JSON
+          updated_at: new Date().toISOString()
+        });
+      }
+    };
+
+    syncCartToCloud();
   }, [kosik]);
 
   const [databazePotravin, setDatabazePotravin] = useState<ProduktDefinice[]>([]);
@@ -162,6 +179,31 @@ export default function NakupPage() {
       setAktivniStitky([...aktivniStitky, stitek])
     }
   }
+
+  // Přidej tento useEffect pro úvodní stažení dat z cloudu
+  useEffect(() => {
+    const fetchCloudCart = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (session?.user) {
+        const { data, error } = await supabase
+          .from('user_carts')
+          .select('items')
+          .single();
+
+        if (!error && data && data.items) {
+          // Pokud cloudová data existují, porovnáme je nebo prostě přepíšeme lokální
+          // (Zde pro jednoduchost: Pokud je lokální prázdný, použij cloud)
+          const localData = localStorage.getItem('nakupni_kosik');
+          if (!localData || JSON.parse(localData).length === 0) {
+            setKosik(data.items);
+          }
+        }
+      }
+    };
+
+    fetchCloudCart();
+  }, []);
 
   const pridatDoKosiku = async () => {
     console.log("Stav vybranyProdukt:", vybranyProdukt);

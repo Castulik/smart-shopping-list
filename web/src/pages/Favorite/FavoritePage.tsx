@@ -67,11 +67,42 @@ export default function FavoritesPage() {
     fetchSlevy();
   }, []);
 
+  const [user, setUser] = useState<any>(null);
+
   useEffect(() => {
-    const data = localStorage.getItem('moje_ulozena_jidla');
-    if (data) {
-      setMojeJidla(JSON.parse(data));
-    }
+    // Zjistíme, jestli je někdo přihlášený
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+  }, []);
+
+  // V FavoritesPage.tsx uprav useEffect pro načítání receptů:
+
+  useEffect(() => {
+    const loadJidla = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (session?.user) {
+        // Jsme online - zkusíme Supabase
+        const { data, error } = await supabase
+          .from('user_recipes')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (!error && data) {
+          setMojeJidla(data);
+          // Volitelně: aktualizuj localStorage, aby byl aktuální i offline
+          localStorage.setItem('moje_ulozena_jidla', JSON.stringify(data));
+          return;
+        }
+      }
+
+      // Nejsme přihlášeni nebo Supabase selhal - vezmi lokální
+      const localData = localStorage.getItem('moje_ulozena_jidla');
+      if (localData) setMojeJidla(JSON.parse(localData));
+    };
+
+    loadJidla();
   }, []);
 
   const koupitJidlo = (jidlo: UlozeneJidlo) => {
@@ -80,6 +111,19 @@ export default function FavoritesPage() {
 
   return (
     <div className="pb-24">
+
+      {!user && (
+        <div className="bg-linear-to-r from-emerald-500 to-teal-600 rounded-3xl p-6 mb-8 text-white shadow-lg shadow-emerald-200">
+          <h3 className="font-bold text-lg mb-1">Nepřijď o své recepty! 👨‍🍳</h3>
+          <p className="text-emerald-50 text-sm mb-4">Přihlas se a měj je uložené v bezpečí cloudu.</p>
+          <button
+            onClick={() => navigate('/login')}
+            className="bg-white text-emerald-600 px-6 py-2 rounded-full font-bold text-sm shadow-sm active:scale-95 transition-transform"
+          >
+            Přihlásit se
+          </button>
+        </div>
+      )}
 
       {/* Hlavička */}
       <div className="flex justify-between items-center mb-6 mt-2">
@@ -108,7 +152,7 @@ export default function FavoritesPage() {
             />
           ))
         ) : (
-          <div className="text-center py-16 bg-white rounded-[32px] border-2 border-dashed border-gray-100">
+          <div className="text-center py-16 bg-white rounded-4xl border-2 border-dashed border-gray-100">
             <div className="text-4xl mb-4">👨‍🍳</div>
             <p className="text-gray-500 font-medium">Zatím tu nemáš žádné recepty.</p>
             <button
