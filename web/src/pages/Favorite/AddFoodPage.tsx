@@ -105,7 +105,7 @@ export default function AddFoodPage() {
                 // Tady nemusíme uživatele otravovat alertem, je to jen "podkresová" funkce
             }
         }
-        
+
         if (upravovaneId) {
             setIngredience(ingredience.map(p => p.id === upravovaneId ? {
                 ...p,
@@ -127,6 +127,20 @@ export default function AddFoodPage() {
         ResetFormulare();
     }
 
+    const vyberVlastni = () => {
+        const novyProdukt: ProduktDefinice = {
+            id: 'custom-item',
+            nazev: vstup,
+            icon: '🛒',
+            vychoziJednotka: 'ks',
+            mozneJednotky: ['ks', 'kg', 'l', 'g', 'balení'],
+            stitky: []
+        };
+        setVybranyProdukt(novyProdukt);
+        setnaseptavacProdukty([]);
+        setJednotka('ks');
+    }
+
     const ResetFormulare = () => {
         setVstup('');
         setVybranyProdukt(null);
@@ -137,32 +151,35 @@ export default function AddFoodPage() {
         setnaseptavacProdukty([]);
     }
 
-    const ulozitRecept = () => {
-        if (!nazevReceptu.trim()) {
-            alert("Pojmenuj to jídlo! 😉");
-            return;
-        }
+    // V AddFoodPage.tsx uprav funkci ulozitRecept:
 
+    const ulozitRecept = async () => {
+        if (!nazevReceptu.trim()) return;
+
+        const novyRecept = {
+            id: editujemeId || crypto.randomUUID(),
+            nazev: nazevReceptu,
+            emoji: '🍲',
+            ingredience: ingredience
+        };
+
+        // 1. VŽDY ulož do localStorage (offline-first)
         const existujici = JSON.parse(localStorage.getItem('moje_ulozena_jidla') || '[]');
-
-        let aktualizovane;
-        if (editujemeId) {
-            aktualizovane = existujici.map((r: any) => r.id === editujemeId ? {
-                ...r,
-                nazev: nazevReceptu,
-                ingredience: ingredience
-            } : r);
-        } else {
-            const novyRecept = {
-                id: crypto.randomUUID(),
-                nazev: nazevReceptu,
-                emoji: '🍲',
-                ingredience: ingredience
-            };
-            aktualizovane = [...existujici, novyRecept];
-        }
+        const aktualizovane = editujemeId
+            ? existujici.map((r: any) => r.id === editujemeId ? novyRecept : r)
+            : [...existujici, novyRecept];
 
         localStorage.setItem('moje_ulozena_jidla', JSON.stringify(aktualizovane));
+
+        // 2. POKUD je uživatel přihlášen, pošli i do Supabase
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+            await supabase.from('user_recipes').upsert({
+                ...novyRecept,
+                user_id: session.user.id
+            });
+        }
+
         navigate('/favorite');
     }
 
@@ -192,7 +209,7 @@ export default function AddFoodPage() {
                 naseptavacProdukty={naseptavacProdukty}
                 vybranyProdukt={vybranyProdukt}
                 onVybratZNaspetavace={vyberProdukt}
-                onVybratVlastni={() => { }}
+                onVybratVlastni={vyberVlastni}
                 pocet={pocet}
                 setPocet={setPocet}
                 jednotka={jednotka}
