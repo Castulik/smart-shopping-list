@@ -71,7 +71,7 @@ export const ProductForm = ({
                         onClick={() => onVybratZNaspetavace(prod)}
                     >
                         {/* A) IKONA */}
-                        <span className="text-2xl flex-shrink-0 w-8 text-center">{prod.icon}</span>
+                        <span className="text-2xl shrink-0 w-8 text-center">{prod.icon}</span>
 
                         {/* B) TEXTOVÝ OBSAH */}
                         <div className="flex-1 min-w-0 flex flex-col justify-center">

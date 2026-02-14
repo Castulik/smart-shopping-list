@@ -113,7 +113,7 @@ export default function FavoritesPage() {
     <div className="pb-24">
 
       {!user && (
-        <div className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-3xl p-6 mb-8 text-white shadow-lg shadow-emerald-200">
+        <div className="bg-linear-to-r from-emerald-500 to-teal-600 rounded-3xl p-6 mb-8 text-white shadow-lg shadow-emerald-200">
           <h3 className="font-bold text-lg mb-1">Nepřijď o své recepty! 👨‍🍳</h3>
           <p className="text-emerald-50 text-sm mb-4">Přihlas se a měj je uložené v bezpečí cloudu.</p>
           <button
@@ -152,7 +152,7 @@ export default function FavoritesPage() {
             />
           ))
         ) : (
-          <div className="text-center py-16 bg-white rounded-[32px] border-2 border-dashed border-gray-100">
+          <div className="text-center py-16 bg-white rounded-4xl border-2 border-dashed border-gray-100">
             <div className="text-4xl mb-4">👨‍🍳</div>
             <p className="text-gray-500 font-medium">Zatím tu nemáš žádné recepty.</p>
             <button

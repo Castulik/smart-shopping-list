@@ -26,7 +26,7 @@ export default function LoginPage() {
       <h1 className="text-3xl font-extrabold text-gray-900 text-center mb-2">
         Tvoje recepty v bezpečí
       </h1>
-      <p className="text-gray-500 text-center mb-10 max-w-[280px]">
+      <p className="text-gray-500 text-center mb-10 max-w-70">
         Přihlas se a měj své nákupní seznamy a recepty dostupné na všech zařízeních.
       </p>
 
