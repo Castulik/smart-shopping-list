@@ -19,6 +19,7 @@ Aplikace má kompletní UI, fungující nákupní košík s perzistencí dat a n
 * **Logika:** Vlastní skórovací algoritmus pro párování produktů (`ceny.ts`)
 
 ---
+---
 
 ## ✨ Klíčové Funkce
 
