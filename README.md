@@ -1,5 +1,8 @@
 # 🛒 Chytrý Nákup (PWA)
 
+## 📸 Preview
+![smart-shopping-list](Chytrý nákup.gif) 
+
 Webová aplikace (Progressive Web App), která pomáhá uživatelům optimalizovat nákupní seznam. Porovnává položky v košíku s aktuálními slevami v supermarketech a vypočítá nejvýhodnější kombinaci nákupu.
 
 ## 🚀 Aktuální stav projektu (Status Report)
