@@ -1,104 +1,77 @@
-import { useState, useEffect } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
-import { type VysledekObchodu, type VysledekHledani, type PolozkaKosiku, type DbProdukt } from '../../types/types'
-import { spocitatCenyProObchody, najitNejlepsiProduktyGlobalne } from '../../utils/ceny'
-import { supabase } from '../supabaseClient'
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { type VysledekObchodu, type VysledekHledani, type PolozkaKosiku, type DbProdukt } from '../../types/types';
+import { spocitatCenyProObchody, najitNejlepsiProduktyGlobalne } from '../../utils/ceny';
+import { fetchActiveProducts } from '../../utils/productFetcher';
 
-import { CartRecap } from './components/CartRecap'
-import { ShopRanking } from './components/ShopRanking'
-import { ProductComparison } from './components/ProductComparison'
+import { CartRecap } from './components/CartRecap';
+import { ShopRanking } from './components/ShopRanking';
+import { ProductComparison } from './components/ProductComparison';
 
 export default function OptimumPage() {
     const location = useLocation();
     const navigate = useNavigate();
-    const kosik: PolozkaKosiku[] = location.state?.kosik || [];
+
+    const locationState = location.state as { kosik?: PolozkaKosiku[] } | undefined;
+    const rawKosik = locationState?.kosik;
+    const kosik = useMemo<PolozkaKosiku[]>(() => rawKosik || [], [rawKosik]);
 
     // STAVY
-    const [zebricekObchodu, setZebricekObchodu] = useState<VysledekObchodu[]>([])
-    const [vysledkyProduktu, setVysledkyProduktu] = useState<VysledekHledani[]>([])
-    const [loading, setLoading] = useState(true)
+    const [zebricekObchodu, setZebricekObchodu] = useState<VysledekObchodu[]>([]);
+    const [vysledkyProduktu, setVysledkyProduktu] = useState<VysledekHledani[]>([]);
+    const [loading, setLoading] = useState(true);
     const [rozbalenyObchodIndex, setRozbalenyObchodIndex] = useState<number | null>(null);
+
+    const zpracovatData = useCallback((produkty: DbProdukt[]) => {
+        let filtryObchodu: string[] = [];
+        try {
+            const ulozeneFiltry = localStorage.getItem('oblibene_obchody');
+            if (ulozeneFiltry) {
+                filtryObchodu = JSON.parse(ulozeneFiltry);
+            }
+        } catch (e) {
+            console.error('Chyba při čtení filtrů obchodů:', e);
+        }
+
+        const filtrovanaData = filtryObchodu.length > 0
+            ? produkty.filter(p => filtryObchodu.includes(p.shop))
+            : produkty;
+
+        const vysledkyObchodu = spocitatCenyProObchody(kosik, filtrovanaData);
+        setZebricekObchodu(vysledkyObchodu);
+
+        const vysledkyProd = najitNejlepsiProduktyGlobalne(kosik, filtrovanaData);
+        setVysledkyProduktu(vysledkyProd);
+        setLoading(false);
+    }, [kosik]);
 
     useEffect(() => {
         if (kosik.length === 0) {
             navigate('/');
             return;
         }
-        spustitVypoctySRealnymiDaty();
-    }, []);
 
-    const spustitVypoctySRealnymiDaty = async () => {
-        setLoading(true);
-
-        // 1. Stáhneme data ze Supabase
-        const { data, error } = await supabase
-            .from('products')
-            .select('*');
-
-        if (error) {
-            console.error("Chyba při stahování slev:", error);
-            setLoading(false);
-            return;
-        }
-
-        if (!data) {
-            setLoading(false);
-            return;
-        }
-
-        // 2. MAPPING (PŘEKLADAČ): Supabase DB -> Naše aplikace
-        const realnaDataAkci: DbProdukt[] = data.map((row: any) => {
-            // Cena za měrnou jednotku (např. za 1 roli, 1 litr)
-            const unitPrice = parseFloat(row.current_price_per_unit) || 0;
-
-            // Pokusíme se zjistit cenu za balení (shelf_price)
-            // A) Máme ji v DB? Použijeme ji.
-            // B) Nemáme? Použijeme unitPrice (a doufáme, že to algorimus v ceny.ts dopočítá přes regex)
-            const shelfPrice = row.shelf_price ? parseFloat(row.shelf_price) : unitPrice;
-
-            // Pokusíme se zjistit velikost balení (amount)
-            const amount = row.amount ? parseFloat(row.amount) : 1;
-
-            return {
-                id: String(row.id),
-                name: row.name,
-                shop: row.shop,
-                category: row.category || 'Neurčeno',
-
-                // OPRAVENO: Pokud v DB existuje shelf_price, použijeme ji. 
-                // Jinak tam zatím dáme unitPrice, ale algoritmus v ceny.ts to pozná a zkusí dopočítat.
-                shelf_price: shelfPrice,
-
-                current_price_per_unit: unitPrice,
-                regular_price_per_unit: parseFloat(row.regular_price_per_unit) || 0,
-
-                discount_percent: parseFloat(row.discount_percent) || 0,
-
-                deal_score: row.deal_score || 0,
-
-                // OPRAVENO: Bereme množství z DB, pokud existuje. Jinak 1.
-                amount: amount,
-
-                // Jednotka - ideálně by měla být taky v DB (např. 'l', 'kg', 'ks')
-                unit: row.unit || 'ks'
-            };
+        let isCurrent = true;
+        fetchActiveProducts().then((realnaDataAkci) => {
+            if (isCurrent) {
+                zpracovatData(realnaDataAkci);
+            }
         });
 
-        // 3. Výpočty
-        setTimeout(() => {
-            const vysledkyObchodu = spocitatCenyProObchody(kosik, realnaDataAkci);
-            setZebricekObchodu(vysledkyObchodu);
+        return () => {
+            isCurrent = false;
+        };
+    }, [kosik, navigate, zpracovatData]);
 
-            const vysledkyProd = najitNejlepsiProduktyGlobalne(kosik, realnaDataAkci);
-            setVysledkyProduktu(vysledkyProd);
-
-            setLoading(false);
-        }, 500);
-    }
+    const obnovitCeny = async () => {
+        setLoading(true);
+        const cerstvaData = await fetchActiveProducts(true);
+        zpracovatData(cerstvaData);
+    };
 
     const toggleObchod = (index: number) => {
         setRozbalenyObchodIndex(rozbalenyObchodIndex === index ? null : index);
-    }
+    };
 
     return (
         <div className="pb-24">
@@ -107,14 +80,22 @@ export default function OptimumPage() {
             {loading ? (
                 <div className="flex flex-col items-center justify-center py-20 text-gray-400">
                     <div className="animate-spin text-4xl mb-4">⏳</div>
-                    <span className="text-sm font-medium animate-pulse">Stahuji aktuální letáky...</span>
+                    <span className="text-sm font-medium animate-pulse">Porovnávám ceny letáků...</span>
                 </div>
             ) : (
                 <div className="animate-in fade-in duration-500">
                     <div className="mb-8">
-                        <h2 className="text-xl font-bold text-gray-800 mb-4 px-2">
-                            🏆 Žebříček obchodů
-                        </h2>
+                        <div className="flex justify-between items-center mb-4 px-2">
+                            <h2 className="text-xl font-bold text-gray-800">
+                                🏆 Žebříček obchodů
+                            </h2>
+                            <button
+                                onClick={obnovitCeny}
+                                className="text-xs text-emerald-600 font-semibold hover:underline"
+                            >
+                                🔄 Obnovit ceny
+                            </button>
+                        </div>
                         <ShopRanking
                             results={zebricekObchodu}
                             totalItemsCount={kosik.length}
@@ -132,5 +113,5 @@ export default function OptimumPage() {
                 </div>
             )}
         </div>
-    )
+    );
 }

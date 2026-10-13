@@ -69,20 +69,32 @@ Aktuálně největší brzdou je **Kvalita Dat (Data Engineering)**.
 
 ## 📂 Struktura Projektu
 
-* `/src/pages/Nakup` - Logika nákupního seznamu (vstup dat).
-* `/src/pages/Optimum` - Výsledky, žebříček obchodů, stahování dat.
-* `/src/utils/ceny.ts` - **Mozek aplikace** (výpočetní a párovací logika).
-* `/src/data/bezne_ceny.ts` - Fallback ceník pro zboží mimo akci.
+* `web/src/pages/Nakup` - Logika nákupního seznamu (vstup dat, rychlý výběr, vyprázdnění košíku).
+* `web/src/pages/Optimum` - Výsledky, žebříček obchodů, stahování dat s mezipamětí.
+* `web/src/pages/Favorite` - Správa oblíbených receptů a jídel s offline podporou.
+* `web/src/pages/Settings` - Uživatelský profil, odhlášení a filtr preferovaných obchodů.
+* `web/src/utils/ceny.ts` - Výpočetní logika srovnání cen a párování slev.
+* `web/src/utils/productFetcher.ts` - Centrální stahování slev ze Supabase s 15minutovou mezipamětí.
+* `scrape/main.py` - Hlavní pipeline scraperu pro Kupi.cz.
+* `.github/workflows/scrape-discounts.yml` - Automatické denní stahování letáků v cloudu.
 
 ---
 
 ## 📦 Jak spustit projekt
 
-1.  Nainstalovat závislosti:
-    ```bash
-    npm install
-    ```
-2.  Spustit lokální server:
-    ```bash
-    npm run dev
-    ```
+### 1. Webová aplikace (Frontend)
+```bash
+cd web
+cp .env.example .env   # vyplňte své Supabase credentials
+npm install
+npm run dev
+```
+
+### 2. Python Scraper (Backend)
+```bash
+cd scrape
+cp .env.example .env   # vyplňte SUPABASE_URL a service_role klíč
+pip install -r requirements.txt
+python main.py
+```
+

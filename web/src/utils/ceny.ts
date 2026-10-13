@@ -1,6 +1,15 @@
 import { BEZNE_CENY } from '../data/bezne_ceny';
-import { type DbProdukt, type PolozkaKosiku, type VysledekHledani, type VysledekObchodu, type DetailPolozky, type ProduktDefinice } from '../types/types';
+import {
+  type DbProdukt,
+  type PolozkaKosiku,
+  type VysledekHledani,
+  type VysledekObchodu,
+  type DetailPolozky,
+  type ProduktDefinice,
+  type SupabaseFuzzyRpcRow
+} from '../types/types';
 import { supabase } from '../pages/supabaseClient';
+
 
 // ==========================================
 // 1. KONFIGURACE A POMOCNÉ FUNKCE
@@ -225,7 +234,7 @@ export const spocitatCenyProObchody = (seznamPolozek: PolozkaKosiku[], databazeA
           });
         } else {
           chybi.push(polozka.nazev);
-          suma += 1;
+          // U chybějící položky nepřičítáme fiktivní 1 Kč - celková cena reflektuje pouze reálně nalezené položky
         }
       }
     }
@@ -266,7 +275,7 @@ export const najitNejlepsiProduktyGlobalne = (seznamPolozek: PolozkaKosiku[], da
         klicovaSlova = [...slova, ...slova.map(ziskatKorenSlova)];
     }
 
-    let kandidati = databazeAkci.filter(p => {
+    const kandidati = databazeAkci.filter(p => {
       const jmeno = normalize(p.name);
       return klicovaSlova.some(slovo => jmeno.includes(slovo));
     });
@@ -307,7 +316,9 @@ export const searchProductsFuzzy = async (searchTerm: string): Promise<ProduktDe
     return [];
   }
 
-  return (data || []).map((item: any) => ({
+  const rows = (data || []) as SupabaseFuzzyRpcRow[];
+
+  return rows.map((item) => ({
       id: item.id,
       nazev: item.nazev,
       icon: item.icon || '🛒',

@@ -4,7 +4,11 @@ import { createClient } from '@supabase/supabase-js'
 // Klíč musí být ten "anon" (public), NE service_role!
 // Service_role patří jen na backend (Python), do Reactu patří anon.
 
-const supabaseUrl = 'https://jkmcddesnvjemymfsure.supabase.co'
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImprbWNkZGVzbnZqZW15bWZzdXJlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2OTUwNzM1MCwiZXhwIjoyMDg1MDgzMzUwfQ.u4ZkhnefptvuqNNYCuAy45JwAE8R6CQNc985fmrFk-M' 
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://jkmcddesnvjemymfsure.supabase.co';
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
-export const supabase = createClient(supabaseUrl, supabaseKey)
+if (!supabaseKey) {
+  console.warn('⚠️ Supabase anon klíč nebyl nalezen v proměnných prostředí (VITE_SUPABASE_ANON_KEY). Vytvořte soubor web/.env.');
+}
+
+export const supabase = createClient(supabaseUrl, supabaseKey);

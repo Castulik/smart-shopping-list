@@ -1,0 +1,35 @@
+name: Denní scraping slev
+
+on:
+  schedule:
+    # Spustí se každý den v 05:00 UTC (cca 6:00 / 7:00 SEČ před otevírací dobou)
+    - cron: '0 5 * * *'
+  workflow_dispatch:
+    # Umožňuje spustit scraping ručně jedním klikem v GitHub Actions
+
+jobs:
+  scrape-and-update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout kódu
+        uses: actions/checkout@v4
+
+      - name: Nastavení Pythonu
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: 'scrape/requirements.txt'
+
+      - name: Instalace závislostí
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r scrape/requirements.txt
+
+      - name: Spuštění scrapingu a uložení do Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          SCRAPER_MAX_PAGES: '3'
+        run: |
+          python scrape/main.py
