@@ -23,8 +23,9 @@ def run_scraper_pipeline():
     for category in categories:
         print(f"\n📂 Zpracovávám kategorii: {category}")
         
-        # 1. Stáhnout seznam produktů (jen 1 stránka pro test, v ostrém provozu dej 0 = vše)
-        products_json = scraper.get_discounts_by_category(category, max_pages=1)
+        # 1. Stáhnout seznam produktů (výchozí 1, v GH Actions nebo produkci lze nastavit např. 3 nebo 0 = vše)
+        max_pages = int(os.environ.get("SCRAPER_MAX_PAGES", "1"))
+        products_json = scraper.get_discounts_by_category(category, max_pages=max_pages)
         products = json.loads(products_json)
         
         print(f"   -> Nalezeno {len(products)} produktů.")

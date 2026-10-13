@@ -1,4 +1,4 @@
-import { useEffect } from 'react'; // 1. Přidán import useEffect
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import NakupPage from './pages/Nakup/NakupPage';
@@ -6,22 +6,19 @@ import OptimumPage from './pages/Optimum/OptimumPage';
 import FavoritePage from './pages/Favorite/FavoritePage';
 import AddFoodPage from './pages/Favorite/AddFoodPage';
 import LoginPage from './pages/Auth/LoginPage';
+import SettingsPage from './pages/Settings/SettingsPage';
 import { supabase } from './pages/supabaseClient';
+import { ToastProvider } from './components/Toast';
+import { type UlozeneJidlo } from './types/types';
 
-const SettingsPage = () => (
-  <div className="page-content">
-    <p>Verze: 1.0.0 TSX</p>
-  </div>
-);
-
-// --- MIGRAČNÍ FUNKCE (Tohle jsi měl dobře, jen to nikdo nevolal) ---
+// --- MIGRAČNÍ FUNKCE ---
 const syncLocalDataToCloud = async (userId: string) => {
   console.log("🔄 Začínám synchronizaci dat na uživatele:", userId);
 
   // 1. Synchronizace receptů
-  const localRecipes = JSON.parse(localStorage.getItem('moje_ulozena_jidla') || '[]');
+  const localRecipes: UlozeneJidlo[] = JSON.parse(localStorage.getItem('moje_ulozena_jidla') || '[]');
   if (localRecipes.length > 0) {
-    const cloudRecipes = localRecipes.map((r: any) => ({
+    const cloudRecipes = localRecipes.map((r) => ({
       ...r,
       user_id: userId,
     }));
@@ -44,39 +41,33 @@ const syncLocalDataToCloud = async (userId: string) => {
 };
 
 function App() {
-
-  // --- TOTO JE TA CHYBĚJÍCÍ ČÁST ---
   useEffect(() => {
-    // Supabase nám dává metodu, která se spustí pokaždé, když se změní stav přihlášení
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      
-      // Event 'SIGNED_IN' nastane, když se uživatel úspěšně přihlásí (např. vrátí z Google loginu)
-      // Event 'INITIAL_SESSION' nastane, když uživatel obnoví stránku a už je přihlášený
       if (event === 'SIGNED_IN' && session) {
         syncLocalDataToCloud(session.user.id);
       }
     });
 
-    // Úklid (cleanup) při zavření aplikace
     return () => {
       subscription.unsubscribe();
     };
   }, []);
-  // ----------------------------------
 
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Layout />}>
-          <Route index element={<NakupPage />} />
-          <Route path="favorite" element={<FavoritePage />} />
-          <Route path="settings" element={<SettingsPage />} />
-          <Route path="optimum" element={<OptimumPage />} />
-          <Route path="addfood" element={<AddFoodPage />} />
-          <Route path="login" element={<LoginPage />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+    <ToastProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Layout />}>
+            <Route index element={<NakupPage />} />
+            <Route path="favorite" element={<FavoritePage />} />
+            <Route path="settings" element={<SettingsPage />} />
+            <Route path="optimum" element={<OptimumPage />} />
+            <Route path="addfood" element={<AddFoodPage />} />
+            <Route path="login" element={<LoginPage />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </ToastProvider>
   );
 }
 

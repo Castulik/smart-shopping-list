@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { type ProduktDefinice, type PolozkaKosiku } from '../../types/types'
+import { type ProduktDefinice, type PolozkaKosiku, type SupabaseGlobalProductRow } from '../../types/types'
 import { supabase } from '../supabaseClient'
-// 👇 DŮLEŽITÉ: Import nové vyhledávací funkce
 import { searchProductsFuzzy } from '../../utils/ceny';
+import { useToast } from '../../components/useToast';
+import { Trash2 } from 'lucide-react';
 
 // Import komponent
 import { QuickAddBar } from './components/QuickAddBar'
@@ -12,6 +13,7 @@ import { ProductForm } from './components/ProductForm'
 
 export default function NakupPage() {
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
   // --- STAVY (LOGIKA) ---
 
@@ -29,20 +31,17 @@ export default function NakupPage() {
     return [];
   });
 
-  // 2. Automatické ukládání při každé změně
   // 2. Automatické ukládání při každé změně (Hybridní verze)
   useEffect(() => {
-    // Vždy ulož lokálně (pro rychlost)
     localStorage.setItem('nakupni_kosik', JSON.stringify(kosik));
 
     const syncCartToCloud = async () => {
       const { data: { session } } = await supabase.auth.getSession();
 
-      // Pokud je uživatel přihlášen, pošli "zálohu" do Supabase
       if (session?.user) {
         await supabase.from('user_carts').upsert({
           user_id: session.user.id,
-          items: kosik, // Celé pole košíku uložíme jako JSON
+          items: kosik,
           updated_at: new Date().toISOString()
         });
       }
@@ -55,17 +54,16 @@ export default function NakupPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   // --- EFEKT: NAČTENÍ DAT PRO RYCHLOU VOLBU (QuickAddBar) ---
-  // Poznámka: Tohle necháváme, aby se načetly ikony pro spodní lištu,
-  // ale už to nepoužíváme pro hlavní vyhledávání.
   useEffect(() => {
     const fetchProdukty = async () => {
       setIsLoading(true);
-      const { data, error } = await supabase.from('global_products').select('*').limit(20); // Stačí nám jich pár pro rychlou volbu
+      const { data, error } = await supabase.from('global_products').select('*').limit(20);
 
       if (error) {
         console.error('Chyba při načítání:', error);
       } else if (data) {
-        const mappedData: ProduktDefinice[] = data.map((item: any) => ({
+        const rows = data as SupabaseGlobalProductRow[];
+        const mappedData: ProduktDefinice[] = rows.map((item) => ({
           id: item.id,
           nazev: item.nazev,
           icon: item.icon,
@@ -89,51 +87,51 @@ export default function NakupPage() {
   const [pocet, setPocet] = useState(1)
   const [jednotka, setJednotka] = useState('ks')
   const [aktivniStitky, setAktivniStitky] = useState<string[]>([])
-
   const [upravovaneId, setUpravovaneId] = useState<string | null>(null);
 
-  // 🔥 NOVÁ LOGIKA VYHLEDÁVÁNÍ (Debounce + Supabase Fuzzy) 🔥
-  useEffect(() => {
-    // 1. Pokud je vstup prázdný nebo moc krátký, vyčistíme našeptávač
-    if (!vstup || vstup.trim().length < 2) {
+  const handleVstupChange = (novyVstup: string) => {
+    setVstup(novyVstup);
+    if (!novyVstup || novyVstup.trim().length < 2) {
       setnaseptavacProdukty([]);
+    }
+  };
+
+  // 🔥 VYHLEDÁVÁNÍ (Debounce + Supabase Fuzzy) bez synchronních setState v těle efektu 🔥
+  useEffect(() => {
+    if (!vstup || vstup.trim().length < 2) {
       return;
     }
 
-    // Pokud už máme vybraný produkt a jen ho editujeme, nechceme hledat znovu
     if (vybranyProdukt && vybranyProdukt.nazev === vstup) {
       return;
     }
 
-    // 2. Nastavíme časovač (Debounce 300ms)
+    let isCurrent = true;
     const timeoutId = setTimeout(async () => {
-      console.log(`🔎 Hledám v DB výraz: "${vstup}"`);
-
       try {
-        // Voláme naší novou Supabase funkci
         const vysledky = await searchProductsFuzzy(vstup);
-        setnaseptavacProdukty(vysledky);
+        if (isCurrent) {
+          setnaseptavacProdukty(vysledky);
+        }
       } catch (err) {
         console.error("Chyba při hledání:", err);
       }
     }, 300);
 
-    // 3. Cleanup: Zrušíme předchozí timer při psaní
-    return () => clearTimeout(timeoutId);
-
-  }, [vstup, vybranyProdukt]); // Sledujeme změnu vstupu
-
+    return () => {
+      isCurrent = false;
+      clearTimeout(timeoutId);
+    };
+  }, [vstup, vybranyProdukt]);
 
   // --- FUNKCE PRO VÝBĚR A FORMULÁŘ ---
   const vyberProdukt = (produkt: ProduktDefinice) => {
-    setVybranyProdukt(produkt)
-    setVstup(produkt.nazev)
-
-    // Ošetření pokud jednotky chybí
-    setJednotka(produkt.vychoziJednotka || 'ks')
-    setPocet(1)
-    setAktivniStitky([])
-    setnaseptavacProdukty([]) // Skryjeme našeptávač po výběru
+    setVybranyProdukt(produkt);
+    setVstup(produkt.nazev);
+    setJednotka(produkt.vychoziJednotka || 'ks');
+    setPocet(1);
+    setAktivniStitky([]);
+    setnaseptavacProdukty([]);
   }
 
   const vyberVlastni = () => {
@@ -152,13 +150,10 @@ export default function NakupPage() {
 
   const editovatPolozku = (polozka: PolozkaKosiku) => {
     setUpravovaneId(polozka.id);
-
-    // Zkusíme najít definici v tom, co máme načtené (pro rychlou volbu), 
-    // ale spíš si vytvoříme "mock" objekt, protože nemáme všechna data.
     setVybranyProdukt({
       id: 'edit-item',
       nazev: polozka.nazev,
-      icon: '✏️', // Nebo zkusit najít ikonu, pokud chceme být fancy
+      icon: '✏️',
       vychoziJednotka: polozka.jednotka,
       mozneJednotky: ['ks', 'kg', 'l', 'g', 'balení'],
       stitky: []
@@ -180,7 +175,6 @@ export default function NakupPage() {
     }
   }
 
-  // Přidej tento useEffect pro úvodní stažení dat z cloudu
   useEffect(() => {
     const fetchCloudCart = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -192,8 +186,6 @@ export default function NakupPage() {
           .single();
 
         if (!error && data && data.items) {
-          // Pokud cloudová data existují, porovnáme je nebo prostě přepíšeme lokální
-          // (Zde pro jednoduchost: Pokud je lokální prázdný, použij cloud)
           const localData = localStorage.getItem('nakupni_kosik');
           if (!localData || JSON.parse(localData).length === 0) {
             setKosik(data.items);
@@ -206,36 +198,28 @@ export default function NakupPage() {
   }, []);
 
   const pridatDoKosiku = async () => {
-    console.log("Stav vybranyProdukt:", vybranyProdukt);
     if (!vybranyProdukt) return;
 
     if (vybranyProdukt.id === 'custom-item' && !upravovaneId) {
-      // Použijeme try/catch pro případ, že by vypadl internet nebo DB
       try {
-        const { error } = await supabase
+        await supabase
           .from('user_suggestions')
           .insert([{ nazev: vybranyProdukt.nazev }]);
-
-        if (error) throw error;
-        console.log("🚀 Návrh na nové zboží odeslán!");
       } catch (err) {
         console.error("Chyba při ukládání návrhu:", err);
-        // Tady nemusíme uživatele otravovat alertem, je to jen "podkresová" funkce
       }
     }
 
-    // uložení do košíku z editu
     if (upravovaneId) {
       setKosik(kosik.map(p => p.id === upravovaneId ? {
         ...p,
-        nazev: vybranyProdukt.nazev, // Umožníme i přejmenování
+        nazev: vybranyProdukt.nazev,
         pocet: pocet,
         jednotka: jednotka,
         vybraneStitky: aktivniStitky
       } : p));
-    }
-    // uložení do košíku normálně
-    else {
+      showToast('Položka upravena', 'success');
+    } else {
       const novaPolozka: PolozkaKosiku = {
         id: crypto.randomUUID(),
         nazev: vybranyProdukt.nazev,
@@ -244,6 +228,7 @@ export default function NakupPage() {
         vybraneStitky: aktivniStitky
       };
       setKosik([...kosik, novaPolozka]);
+      showToast(`Přidáno: ${pocet}x ${vybranyProdukt.nazev}`, 'success');
     }
 
     ResetFormulare();
@@ -262,10 +247,19 @@ export default function NakupPage() {
   const smazPolozku = (id: string) => {
     setKosik(kosik.filter(p => p.id !== id));
     if (upravovaneId === id) ResetFormulare();
+    showToast('Položka odebrána z košíku', 'info');
   }
 
-  const jitNaVysledky = () => navigate('/optimum', { state: { kosik: kosik } })
+  const vysypatKosik = () => {
+    if (kosik.length === 0) return;
+    if (window.confirm('Opravdu chcete vyprázdnit celý nákupní košík?')) {
+      setKosik([]);
+      ResetFormulare();
+      showToast('Košík byl vyprázdněn', 'info');
+    }
+  };
 
+  const jitNaVysledky = () => navigate('/optimum', { state: { kosik: kosik } })
 
   // --- VZHLED (RENDER) ---
   return (
@@ -273,7 +267,7 @@ export default function NakupPage() {
       <ProductForm
         kosik={true}
         vstup={vstup}
-        setVstup={setVstup}
+        setVstup={handleVstupChange}
         naseptavacProdukty={naseptavacProdukty}
         vybranyProdukt={vybranyProdukt}
         onVybratZNaspetavace={vyberProdukt}
@@ -289,7 +283,6 @@ export default function NakupPage() {
         submitLabel={upravovaneId ? '💾 Uložit změny' : undefined}
       />
 
-      {/* QuickAddBar zobrazíme jen když needitujeme a máme nějaká data */}
       {!isLoading && databazePotravin.length > 0 && !upravovaneId && (
         <QuickAddBar
           produkty={databazePotravin.slice(0, 8)}
@@ -298,9 +291,20 @@ export default function NakupPage() {
       )}
 
       <div className="mb-4">
-        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-2">
-          V košíku ({kosik.length})
-        </h3>
+        <div className="flex justify-between items-center mb-2 px-2">
+          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+            V košíku ({kosik.length})
+          </h3>
+          {kosik.length > 0 && (
+            <button
+              onClick={vysypatKosik}
+              className="text-xs text-red-500 font-semibold flex items-center gap-1 hover:underline active:scale-95 transition-transform"
+            >
+              <Trash2 size={13} />
+              <span>Vysypat košík</span>
+            </button>
+          )}
+        </div>
         <ShoppingList
           kosik={true}
           items={kosik}

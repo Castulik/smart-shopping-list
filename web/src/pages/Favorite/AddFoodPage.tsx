@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { type ProduktDefinice, type PolozkaKosiku } from '../../types/types'
+import { type ProduktDefinice, type PolozkaKosiku, type SupabaseGlobalProductRow, type UlozeneJidlo } from '../../types/types'
 import { supabase } from '../supabaseClient'
 import { searchProductsFuzzy } from '../../utils/ceny';
+import { useToast } from '../../components/useToast';
+
 
 // Import komponent
 import { QuickAddBar } from '../Nakup/components/QuickAddBar'
@@ -12,24 +14,17 @@ import { ProductForm } from '../Nakup/components/ProductForm'
 export default function AddFoodPage() {
     const navigate = useNavigate();
     const location = useLocation();
+    const { showToast } = useToast();
+
+    const jidloKEditaci = location.state?.jidloKEditaci as UlozeneJidlo | undefined;
 
     // --- STAVY ---
-    const [nazevReceptu, setNazevReceptu] = useState('');
-    const [ingredience, setIngredience] = useState<PolozkaKosiku[]>([]);
-    const [editujemeId, setEditujemeId] = useState<string | null>(null);
+    const [nazevReceptu, setNazevReceptu] = useState(() => jidloKEditaci?.nazev || '');
+    const [ingredience, setIngredience] = useState<PolozkaKosiku[]>(() => jidloKEditaci?.ingredience || []);
+    const [editujemeId] = useState<string | null>(() => jidloKEditaci?.id || null);
 
     const [databazePotravin, setDatabazePotravin] = useState<ProduktDefinice[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-
-    // EFEKT: Načtení dat při příchodu z editace
-    useEffect(() => {
-        const dataZNavigace = location.state?.jidloKEditaci;
-        if (dataZNavigace) {
-            setNazevReceptu(dataZNavigace.nazev);
-            setIngredience(dataZNavigace.ingredience);
-            setEditujemeId(dataZNavigace.id);
-        }
-    }, [location.state]);
 
     // Ostatní stavy pro formulář
     const [vstup, setVstup] = useState('')
@@ -40,13 +35,21 @@ export default function AddFoodPage() {
     const [aktivniStitky, setAktivniStitky] = useState<string[]>([])
     const [upravovaneId, setUpravovaneId] = useState<string | null>(null);
 
+    const handleVstupChange = (novyVstup: string) => {
+        setVstup(novyVstup);
+        if (!novyVstup || novyVstup.trim().length < 2) {
+            setnaseptavacProdukty([]);
+        }
+    };
+
     // Načtení global_products pro QuickAddBar
     useEffect(() => {
         const fetchProdukty = async () => {
             setIsLoading(true);
             const { data, error } = await supabase.from('global_products').select('*').limit(20);
             if (!error && data) {
-                const mappedData: ProduktDefinice[] = data.map((item: any) => ({
+                const rows = data as SupabaseGlobalProductRow[];
+                const mappedData: ProduktDefinice[] = rows.map((item) => ({
                     id: item.id,
                     nazev: item.nazev,
                     icon: item.icon,
@@ -64,20 +67,25 @@ export default function AddFoodPage() {
     // Fuzzy vyhledávání
     useEffect(() => {
         if (!vstup || vstup.trim().length < 2) {
-            setnaseptavacProdukty([]);
             return;
         }
         if (vybranyProdukt && vybranyProdukt.nazev === vstup) return;
 
+        let isCurrent = true;
         const timeoutId = setTimeout(async () => {
             try {
                 const vysledky = await searchProductsFuzzy(vstup);
-                setnaseptavacProdukty(vysledky);
+                if (isCurrent) {
+                    setnaseptavacProdukty(vysledky);
+                }
             } catch (err) {
                 console.error("Chyba při hledání:", err);
             }
         }, 300);
-        return () => clearTimeout(timeoutId);
+        return () => {
+            isCurrent = false;
+            clearTimeout(timeoutId);
+        };
     }, [vstup, vybranyProdukt]);
 
     const vyberProdukt = (produkt: ProduktDefinice) => {
@@ -164,9 +172,9 @@ export default function AddFoodPage() {
         };
 
         // 1. VŽDY ulož do localStorage (offline-first)
-        const existujici = JSON.parse(localStorage.getItem('moje_ulozena_jidla') || '[]');
+        const existujici: UlozeneJidlo[] = JSON.parse(localStorage.getItem('moje_ulozena_jidla') || '[]');
         const aktualizovane = editujemeId
-            ? existujici.map((r: any) => r.id === editujemeId ? novyRecept : r)
+            ? existujici.map((r) => r.id === editujemeId ? novyRecept : r)
             : [...existujici, novyRecept];
 
         localStorage.setItem('moje_ulozena_jidla', JSON.stringify(aktualizovane));
@@ -180,6 +188,7 @@ export default function AddFoodPage() {
             });
         }
 
+        showToast(editujemeId ? 'Recept upraven!' : 'Recept uložen do oblíbených!', 'success');
         navigate('/favorite');
     }
 
@@ -205,7 +214,7 @@ export default function AddFoodPage() {
             <ProductForm
                 kosik={false}
                 vstup={vstup}
-                setVstup={setVstup}
+                setVstup={handleVstupChange}
                 naseptavacProdukty={naseptavacProdukty}
                 vybranyProdukt={vybranyProdukt}
                 onVybratZNaspetavace={vyberProdukt}

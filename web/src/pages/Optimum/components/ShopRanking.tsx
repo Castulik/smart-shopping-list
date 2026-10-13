@@ -47,6 +47,11 @@ export const ShopRanking = ({ results, totalItemsCount, expandedIndex, onToggle 
                 <div className={`text-xl font-extrabold ${isWinner ? 'text-emerald-700' : 'text-gray-800'}`}>
                   {obchod.celkovaCena.toFixed(0)} Kč
                 </div>
+                {obchod.chybejiciPolozky.length > 0 && (
+                  <span className="text-[10px] text-amber-600 font-semibold block">
+                    +{obchod.chybejiciPolozky.length} chybí
+                  </span>
+                )}
               </div>
             </div>
 

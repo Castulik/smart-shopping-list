@@ -167,7 +167,7 @@ export const najitNejlepsiProduktyGlobalne = (seznamPolozek: PolozkaKosiku[]): V
         const hledaneStitky = polozka.vybraneStitky.map(s => normalize(s));
 
         // 1. Filtrujeme
-        let kandidati = (testovaciData as DbProdukt[]).filter(p => {
+        const kandidati = (testovaciData as DbProdukt[]).filter(p => {
              const jmeno = normalize(p.name);
              return klicovaSlova.some(slovo => jmeno.includes(slovo));
         });
